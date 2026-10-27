@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduGenie</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <h1>Edu<span>Genie</span> ✨</h1>
+  <p class="sub">Your AI-powered learning assistant</p>
+  <div class="tabs" id="tabs"></div>
+  <div class="card">
+    <input id="topic" placeholder="What do you want to learn? e.g. Photosynthesis" autocomplete="off">
+    <div class="row">
+      <select id="level"><option>Beginner</option><option selected>Intermediate</option><option>Advanced</option></select>
+      <select id="extra"></select>
+    </div>
+    <button class="go" id="go">Ask EduGenie</button>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div id="res"></div>
+</main>
+<script src="/script.js"></script>
+</body>
+</html>

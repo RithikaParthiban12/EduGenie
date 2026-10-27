@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 
 from dotenv import load_dotenv
 from google import genai
@@ -8,8 +9,10 @@ from google.genai import types
 
 load_dotenv()
 
-MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-flash-lite-latest")
 _client = None
+RETRY_WORDS = ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "overloaded", "high demand")
 
 
 def _get_client():
@@ -22,18 +25,34 @@ def _get_client():
     return _client
 
 
+def _call(prompt: str, config=None) -> str:
+    """Try the main model with retries, then the fallback model."""
+    last_error = None
+    for model in (MODEL, FALLBACK_MODEL):
+        for attempt in range(3):
+            try:
+                resp = _get_client().models.generate_content(
+                    model=model, contents=prompt, config=config
+                )
+                return resp.text or ""
+            except Exception as e:  # noqa: BLE001
+                last_error = e
+                if any(w in str(e) for w in RETRY_WORDS):
+                    time.sleep(2 * (attempt + 1))  # wait 2s, 4s, 6s
+                    continue
+                break  # other errors (bad key, 404): try the next model
+    raise last_error
+
+
 def ask_text(prompt: str) -> str:
-    resp = _get_client().models.generate_content(model=MODEL, contents=prompt)
-    return resp.text or ""
+    return _call(prompt)
 
 
 def ask_json(prompt: str):
-    resp = _get_client().models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
-    )
-    raw = (resp.text or "").strip()
+    raw = _call(
+        prompt,
+        types.GenerateContentConfig(response_mime_type="application/json"),
+    ).strip()
     raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.M).strip()
     return json.loads(raw)
 

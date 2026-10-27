@@ -37,11 +37,16 @@ async function run() {
   const topic = $("topic").value.trim();
   if (!topic || busy) return;
   busy = true; $("go").disabled = true; $("go").textContent = "Thinking…";
+  $("res").innerHTML = "";
+  const ctrl = new AbortController();
+  const giveUp = setTimeout(() => ctrl.abort(), 90000);
+  const slow = setTimeout(() => { $("go").textContent = "Still working… the server may be waking up"; }, 8000);
   try {
     const r = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode, topic, level: $("level").value, extra: $("extra").value }),
+      signal: ctrl.signal,
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || "Request failed");
@@ -49,8 +54,10 @@ async function run() {
     else if (mode === "quiz") quiz(d.data);
     else cards(d.data);
   } catch (e) {
-    $("res").innerHTML = `<div class="card mu">Error: ${esc(e.message)}</div>`;
+    const msg = e.name === "AbortError" ? "This took too long. Please tap Ask EduGenie again." : e.message;
+    $("res").innerHTML = `<div class="card mu">Error: ${esc(msg)}</div>`;
   }
+  clearTimeout(giveUp); clearTimeout(slow);
   busy = false; $("go").disabled = false; $("go").textContent = "Ask EduGenie";
 }
 
